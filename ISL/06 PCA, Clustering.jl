@@ -11,12 +11,12 @@ names(data)
 
 # Let's have a look at the mean and standard deviation of each feature:
 
-describe(data, :mean, :std)
+describe(data, :mean, :std) |> show
 
 # Let's extract the numerical component and coerce
 
 X = select(data, Not(:State))
-X = coerce(X, :UrbanPop => Continuous, :Assault => Continuous);
+X = coerce(X, :UrbanPop => Continuous, :Assault => Continuous)
 
 # ## PCA pipeline
 #
@@ -28,7 +28,7 @@ pca_mdl = PCA(variance_ratio=1)
 pca = machine(pca_mdl, X)
 fit!(pca)
 PCA
-W = MLJ.transform(pca, X);
+W = MLJ.transform(pca, X)
 
 # W is the PCA'd data; here we've used default settings for PCA:
 
@@ -52,7 +52,7 @@ feature_names = [
     :PriceDiff, :PctDiscMM, :PctDiscCH,
 ]
 
-X = select(data, feature_names);
+X = select(data, feature_names)
 y = select(data, :Purchase)
 
 train, test = partition(eachindex(y.Purchase), 0.7, shuffle=true, rng=1515)
@@ -65,7 +65,7 @@ Random.seed!(1515)
 
 SPCA = Pipeline(
     Standardizer(),
-    PCA(variance_ratio=1 - 1e-4),
+    PCA(variance_ratio=1.0),
 )
 
 spca = machine(SPCA, X)
@@ -90,9 +90,7 @@ begin
 end
 # So 4 PCA features are enough to recover most of the variance.
 
-
-### Test the performance using LogisticClassifier and comapre the performance on PCA features and the original set of features.
-
+### HW TODO - Test the performance using LogisticClassifier and compare the performance on PCA features and the original set of features
 
 # ## Caravan insurance data
 
@@ -139,7 +137,7 @@ density(Xs.MAANTHUI, legend=false)
 # We split the data in the first 1000 rows for testing and the rest for training:
 
 test = 1:1000
-train = last(test)+1:nrows(Xs);
+train = last(test)+1:nrows(Xs)
 
 # Let's now fit a KNN model and check the misclassification rate
 
@@ -150,7 +148,19 @@ ŷ = predict_mode(classif, rows=test)
 accuracy(ŷ, y[test])
 
 # that looks good but recall that the problem is very unbalanced
+bacc(ŷ, y[test])
 
+### Without Data leakage
+train, test = partition(eachindex(y), 0.7, shuffle=true, rng=1515)
+mstd = machine(Standardizer(), X)
+fit!(mstd, rows=train)
+Xstrain = MLJ.transform(mstd, X[train, :])
+Xstest = MLJ.transform(mstd, X[test, :])
+
+classif = machine(KNNClassifier(K=3), Xstrain, y[train])
+fit!(classif)
+ŷ = predict_mode(classif, Xstest)
+accuracy(ŷ, y[test])
 bacc(ŷ, y[test])
 
 # Let's fit a logistic classifier to this problem
@@ -164,6 +174,18 @@ ŷ = predict_mode(classif, rows=test)
 accuracy(ŷ, y[test])
 bacc(ŷ, y[test])
 
+### Without Data leakage
+train, test = partition(eachindex(y), 0.7, shuffle=true, rng=1515)
+mstd = machine(Standardizer(), X)
+fit!(mstd, rows=train)
+Xstrain = MLJ.transform(mstd, X[train, :])
+Xstest = MLJ.transform(mstd, X[test, :])
+
+classif = machine(LogisticClassifier(), Xstrain, y[train])
+fit!(classif)
+ŷ = predict_mode(classif, Xstest)
+accuracy(ŷ, y[test])
+bacc(ŷ, y[test])
 
 # ### ROC and AUC
 
