@@ -7,7 +7,7 @@ using Random
 using StatsPlots
 
 data = dataset("datasets", "USArrests")
-names(data)
+names(data) |> println
 
 # Let's have a look at the mean and standard deviation of each feature:
 
@@ -24,7 +24,7 @@ X = coerce(X, :UrbanPop => Continuous, :Assault => Continuous)
 
 PCA = @load PCA pkg = MultivariateStats
 
-pca_mdl = PCA(variance_ratio=1)
+pca_mdl = Standardizer |> PCA(variance_ratio = 1)
 pca = machine(pca_mdl, X)
 fit!(pca)
 PCA
@@ -37,7 +37,7 @@ schema(W).names
 # Let's inspect the fit:
 
 r = report(pca)
-cumsum(r.principalvars ./ r.tvar)
+cumsum(r.pca.principalvars ./ r.pca.tvar)
 
 # In the second line we look at the explained variance with 1 then 2 PCA features and it seems that with 2 we almost completely recover all of the variance.
 
@@ -48,14 +48,14 @@ cumsum(r.principalvars ./ r.tvar)
 data = dataset("ISLR", "OJ")
 
 feature_names = [
-    :PriceCH, :PriceMM, :DiscCH, :DiscMM, :SalePriceMM, :SalePriceCH,
-    :PriceDiff, :PctDiscMM, :PctDiscCH,
+	:PriceCH, :PriceMM, :DiscCH, :DiscMM, :SalePriceMM, :SalePriceCH,
+	:PriceDiff, :PctDiscMM, :PctDiscCH,
 ]
 
 X = select(data, feature_names)
 y = select(data, :Purchase)
 
-train, test = partition(eachindex(y.Purchase), 0.7, shuffle=true, rng=1515)
+train, test = partition(eachindex(y.Purchase), 0.7, shuffle = true, rng = 1515)
 
 using StatsBase
 countmap(y.Purchase)
@@ -64,8 +64,8 @@ countmap(y.Purchase)
 Random.seed!(1515)
 
 SPCA = Pipeline(
-    Standardizer(),
-    PCA(variance_ratio=1.0),
+	Standardizer(),
+	PCA(variance_ratio = 1.0),
 )
 
 spca = machine(SPCA, X)
@@ -83,10 +83,10 @@ cs = cumsum(rpca.principalvars ./ rpca.tvar)
 
 using Plots
 begin
-    Plots.bar(1:length(cs), cs, legend=false, size=((800, 600)), ylim=(0, 1.1))
-    xlabel!("Number of PCA features")
-    ylabel!("Ratio of explained variance")
-    plot!(1:length(cs), cs, color="red", marker="o", linewidth=3)
+	Plots.bar(1:length(cs), cs, legend = false, size = ((800, 600)), ylim = (0, 1.1))
+	xlabel!("Number of PCA features")
+	ylabel!("Ratio of explained variance")
+	plot!(1:length(cs), cs, color = "red", marker = "o", linewidth = 3)
 end
 # So 4 PCA features are enough to recover most of the variance.
 
@@ -113,10 +113,10 @@ println("#$(vals[2]) ", nl2)
 # we can also visualise this as was done before:
 
 begin
-    cm = countmap(purchase)
-    categories, vals = collect(keys(cm)), collect(values(cm))
-    bar(categories, vals, title="Bar Chart Example", legend=false)
-    ylabel!("Number of occurrences")
+	cm = countmap(purchase)
+	categories, vals = collect(keys(cm)), collect(values(cm))
+	bar(categories, vals, title = "Bar Chart Example", legend = false)
+	ylabel!("Number of occurrences")
 end
 # that's quite unbalanced.
 #
@@ -130,7 +130,7 @@ Xs = MLJ.transform(mstd, X)
 
 var(Xs[:, 1])
 
-density(Xs.MAANTHUI, legend=false)
+density(Xs.MAANTHUI, legend = false)
 
 # **Note**: in MLJ, it is recommended to work with pipelines / networks when possible and not do "step-by-step" transformation and fitting of the data as this is more error prone. We do it here to stick to the ISL tutorial.
 #
@@ -139,11 +139,13 @@ density(Xs.MAANTHUI, legend=false)
 test = 1:1000
 train = last(test)+1:nrows(Xs)
 
+KNNClassifier = @load KNNClassifier
+
 # Let's now fit a KNN model and check the misclassification rate
 
-classif = machine(KNNClassifier(K=3), Xs, y)
-fit!(classif, rows=train)
-ŷ = predict_mode(classif, rows=test)
+classif = machine(KNNClassifier(K = 3), Xs, y)
+fit!(classif, rows = train)
+ŷ = predict_mode(classif, rows = test)
 
 accuracy(ŷ, y[test])
 
@@ -151,13 +153,15 @@ accuracy(ŷ, y[test])
 bacc(ŷ, y[test])
 
 ### Without Data leakage
-train, test = partition(eachindex(y), 0.7, shuffle=true, rng=1515)
+train, test = partition(eachindex(y), 0.7, shuffle = true, rng = 1515)
 mstd = machine(Standardizer(), X)
-fit!(mstd, rows=train)
+fit!(mstd, rows = train)
 Xstrain = MLJ.transform(mstd, X[train, :])
 Xstest = MLJ.transform(mstd, X[test, :])
 
-classif = machine(KNNClassifier(K=3), Xstrain, y[train])
+
+
+classif = machine(KNNClassifier(K = 3), Xstrain, y[train])
 fit!(classif)
 ŷ = predict_mode(classif, Xstest)
 accuracy(ŷ, y[test])
@@ -168,16 +172,16 @@ bacc(ŷ, y[test])
 LogisticClassifier = @load LogisticClassifier pkg = MLJLinearModels
 
 classif = machine(LogisticClassifier(), Xs, y)
-fit!(classif, rows=train)
-ŷ = predict_mode(classif, rows=test)
+fit!(classif, rows = train)
+ŷ = predict_mode(classif, rows = test)
 
 accuracy(ŷ, y[test])
 bacc(ŷ, y[test])
 
 ### Without Data leakage
-train, test = partition(eachindex(y), 0.7, shuffle=true, rng=1515)
+train, test = partition(eachindex(y), 0.7, shuffle = true, rng = 1515)
 mstd = machine(Standardizer(), X)
-fit!(mstd, rows=train)
+fit!(mstd, rows = train)
 Xstrain = MLJ.transform(mstd, X[train, :])
 Xstest = MLJ.transform(mstd, X[test, :])
 
@@ -191,7 +195,8 @@ bacc(ŷ, y[test])
 
 # Since we have a probabilistic classifier, we can also check metrics that take _scores_ into account such as the area under the ROC curve (AUC):
 
-ŷ = MLJ.predict(classif, rows=test)
+ŷ = MLJ.predict(classif, Xstest)
+ŷ = MLJ.predict_mode(classif, Xstest)
 
 auc(ŷ, y[test])
 
@@ -200,7 +205,7 @@ auc(ŷ, y[test])
 fprs, tprs, thresholds = roc_curve(ŷ, y[test])
 
 begin
-    plot(fprs, tprs, linewidth=2, size=(600, 600))
-    xlabel!("False Positive Rate")
-    ylabel!("True Positive Rate")
+	plot(fprs, tprs, linewidth = 2, size = (600, 600))
+	xlabel!("False Positive Rate")
+	ylabel!("True Positive Rate")
 end

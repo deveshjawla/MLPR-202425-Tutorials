@@ -111,7 +111,7 @@ misclassification_rate(ŷ, y) |> r3
 # Let's find the row indices for which the condition holds
 
 train = 1:findlast(X.Year .< 2005)
-test = last(train)+1:length(y);
+test = last(train)+1:length(y)
 
 # We can now just re-fit the machine that we've already defined just on those rows and predict on the test:
 
@@ -140,6 +140,8 @@ ŷ |> println
 # Note also that we retrieved the raw predictions here i.e.: a score for each class; we could have used `predict_mode` or indeed
 
 mode.(ŷ)
+
+
 #HW TODO - Evaluate your LogisticClassifier using 10-folds
 
 # ### LDA
@@ -177,6 +179,8 @@ BayesianQDA = @load BayesianQDA pkg = MLJScikitLearnInterface
 classif = machine(BayesianQDA(), X3, y)
 fit!(classif, rows=train)
 ŷ = predict_mode(classif, rows=test)
+accuracy(ŷ, y[test]) |> r3
+
 
 using StatsPlots
 begin
@@ -194,7 +198,6 @@ begin
     title!("KDE Plot of Lag Differences")
 end
 
-accuracy(ŷ, y[test]) |> r3
 
 # ### KNN
 
@@ -203,14 +206,19 @@ accuracy(ŷ, y[test]) |> r3
 KNNClassifier = @load KNNClassifier
 
 knnc = KNNClassifier(K=2)
-classif = machine(knnc, X, y)
+classif = machine(knnc, X2, y)
 fit!(classif, rows=train)
-ŷ = predict_mode(classif)
+ŷ = predict_mode(classif, rows=test)
 accuracy(ŷ, y[test]) |> r3
 
 # Pretty bad... let's try with three neighbors
 
 knnc.K = 3
+fit!(classif, rows=train)
+ŷ = predict_mode(classif, rows=test)
+accuracy(ŷ, y[test]) |> r3
+
+knnc.K = 4
 fit!(classif, rows=train)
 ŷ = predict_mode(classif, rows=test)
 accuracy(ŷ, y[test]) |> r3
