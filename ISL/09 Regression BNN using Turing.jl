@@ -1,43 +1,45 @@
-using Flux
+using Flux # Deep Learning Library, Lux.jl is another among others
 using StatsPlots
 using Distributions
-using Turing
+using Turing # For Bayesian Inference
 
 ### Create Experimental Data
 
 begin
-	f(x) = cos(x) + rand(Normal(0, 0.1))
+	f(x) = cos(x) + rand(Normal(0, 0.1)) #y
 	xTrain = collect(-3:0.1:3)
 	yTrain = f.(xTrain)
-	plot(xTrain, yTrain, seriestype = :scatter, label = "Train Data")
+	plot(xTrain, yTrain, seriestype = :scatter, label = "Train Data", xlim = [-10, 10])
 	plot!(xTrain, cos.(xTrain), label = "Truth")
 end
 
-nn = Chain(Dense(1 => 2, tanh), Dense(2 => 1, bias = false))
+nn = Chain(Dense(1 => 2, sigmoid), Dense(2 => 1, bias = false)) # Neural Network 1 -> 2 -> 1
 
 init_params, re = Flux.destructure(nn)
 
-n_params = lastindex(init_params)
+const n_params = lastindex(init_params)
 
-@model function bayes_nn(xs, ys, n_params)
+@model function bayes_nn(xs, ys)
 	nn_params ~ MvNormal(zeros(n_params), ones(n_params)) #Prior
-	nn = re(nn_params)
-	preds = nn(xs) #Build the net
-	sigma ~ Gamma(0.01, 1 / 0.01) # Prior for the variance
+	nn = re(nn_params) #Build the net
+	preds = nn(xs) #Predictions
+	sigma ~ Gamma(0.1, 1 / 0.1) # Prior for the variance
 	for i ∈ 1:lastindex(ys)
 		ys[i] ~ Normal(preds[i], sigma)
 	end
 end
 
-using ReverseDiff
-N = 500
-chain = sample(bayes_nn(permutedims(xTrain), yTrain, n_params), NUTS(; adtype = AutoReverseDiff()), N)
+using ReverseDiff # For Automatic Differentiation, Mooncake, Zygote, ReverseDiff, ForwardDiff, etc. are the AD libraries in Julia. This is ordered by speed, Mooncake is the fastest.
 
-lp, maxInd = findmax(chain[:lp])
+N = 1000 # Number of MCMC samples to generate, the more the better.
+model = bayes_nn(permutedims(xTrain), yTrain)
+chain = sample(model, NUTS(; adtype = AutoReverseDiff()), N)
+
+lp, maxInd = findmax(chain[:lp]) # Find the index of the maximum log posterior (log likelihood using SGD) (MAP Estimate) Maximum A Posteriori
 
 params, internals = chain.name_map
 bestParams = map(x -> chain[x].data[maxInd], params[1:6])
-nn = re(bestParams)
+nn = re(bestParams) # Build the neural network with the MAP estimate, thats also what you would have got using Frequnetist Deep Learning techniques such as SGD
 ŷ = nn(permutedims(xTrain))
 
 xPlot = sort(xTrain)
@@ -56,3 +58,5 @@ begin
 end
 lPlot = plot(chain[:lp], label = "Chain", title = "Log Posterior")
 sigPlot = plot(chain[:sigma], label = "Chain", title = "Variance")
+
+#HW use parallel computing to make BNN Inference faster

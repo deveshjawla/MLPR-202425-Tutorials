@@ -44,8 +44,9 @@ using ReverseDiff
 coinflip(y::AbstractVector{<:Real}) = coinflip(; N = lastindex(y)) | (; y) # Define a helper function for the coinflip model. This is an example of multiple dispatch.
 model = coinflip(data)
 sampler = NUTS(; adtype = AutoReverseDiff(compile = true))
+n_mcmc_samples = 1000 # number of Monte Carlo samples, you can increase this for more precise results
 
-chain = Turing.sample(model, sampler, 10000, progress = false)
+chain = Turing.sample(model, sampler, n_mcmc_samples, progress = false)
 histogram(chain)
 
 # Visualize a blue density plot of the approximate posterior distribution using HMC (see Chain 1 in the legend).
