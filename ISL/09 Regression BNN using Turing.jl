@@ -31,7 +31,7 @@ end
 
 using ReverseDiff # For Automatic Differentiation, Mooncake, Zygote, ReverseDiff, ForwardDiff, etc. are the AD libraries in Julia. This is ordered by speed, Mooncake is the fastest.
 
-N = 1000 # Number of MCMC samples to generate, the more the better.
+N = 1000 # Number of MCMC samples to generate, the more the better. Each is a NN trying to fit to the data.
 model = bayes_nn(permutedims(xTrain), yTrain)
 chain = sample(model, NUTS(; adtype = AutoReverseDiff()), N)
 

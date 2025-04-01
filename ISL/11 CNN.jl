@@ -1,7 +1,7 @@
 # Classification of MNIST dataset using a convolutional network,
 # which is a variant of the original LeNet from 1998.
 
-using MLDatasets, Flux, JLD2, StatsPlots
+using Flux, JLD2, StatsPlots
 using CSV, DataFrames, Statistics
 
 folder = "mnist"  # sub-directory in which to save
@@ -12,7 +12,7 @@ filename = joinpath(folder, "lenet.jld2")
 
 # Calling MLDatasets.MNIST() will dowload the dataset if necessary,
 # and return a struct containing it.
-# It takes a few seconds to read from disk each time, so do this once:
+# It takes a few seconds to read from disk each time, so we do this once:
 
 train_data = CSV.read(joinpath(folder, "mnist_train.csv"), DataFrame)  # i.e. split=:train
 test_data = CSV.read(joinpath(folder, "mnist_test.csv"), DataFrame)
@@ -21,8 +21,8 @@ test_data = CSV.read(joinpath(folder, "mnist_test.csv"), DataFrame)
 # Flux needs a 4D array, with the 3rd dim for channels -- here trivial, grayscale.
 # Combine the reshape needed with other pre-processing:
 
-function loader(data::DataFrame; batchsize::Int = 64)
-	x4dim = reshape(permutedims(Matrix(select(data, Not(:label)))), 28, 28, 1, :)   # insert trivial channel dim
+function loader(data::DataFrame; batchsize::Int = 512)
+	x4dim = reshape(permutedims(Matrix{Float32}(select(data, Not(:label)))), 28, 28, 1, :)   # insert trivial channel dim
 
 	x4dim = mapslices(x -> reverse(permutedims(x ./ 255), dims = 1), x4dim, dims = (1, 2))
 
@@ -122,7 +122,7 @@ Flux.loadmodel!(lenet, loaded_state)
 settings = (;
 	eta = 3e-4,     # learning rate
 	lambda = 1e-2,  # for weight decay
-	batchsize = 64,
+	batchsize = 512,
 	epochs = 10,
 )
 train_log = []
@@ -131,8 +131,6 @@ train_log = []
 
 opt_rule = OptimiserChain(WeightDecay(settings.lambda), AdaBelief())
 opt_state = Flux.setup(opt_rule, lenet)
-least_loss = Inf
-last_improvement = 1
 for epoch in 1:settings.epochs
 	# @time will show a much longer time for the first epoch, due to compilation
 	@time for (x, y) in train_data_loader
@@ -161,3 +159,6 @@ y1hat = softmax(lenet(x1))
 @show hcat(Flux.onecold(y1hat, 0:9), Flux.onecold(y1, 0:9))
 
 #===== THE END =====#
+
+# 1. Cross-validation when Hyperparameter tuning - Requires Train and validation sets, ususally comes from the original train set, which are split for n folds
+# 2. Evaluation 10-fold (evaluate!) when presenting a model to someone - Requires only train set which is split into 10 folds
