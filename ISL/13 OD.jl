@@ -32,4 +32,4 @@ mach = machine(knn, X[:, train], y[train])
 fit!(mach)
 predict(mach, X[:, test])
 
-
+#TunedModel from MLJ does not work. Due to some out of date dependencies, or some bug in the code.

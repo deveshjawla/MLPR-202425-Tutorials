@@ -1,4 +1,4 @@
-# Classification of MNIST dataset using a convolutional network,
+# Classification of MNIST dataset using a convolutional neural network,
 # which is a variant of the original LeNet from 1998.
 
 using Flux, JLD2, StatsPlots
@@ -39,15 +39,15 @@ train_data_loader = loader(train_data)
 #===== MODEL =====#
 
 # LeNet has two convolutional layers, and our modern version has relu nonlinearities.
-# After each conv layer there's a pooling step. Finally, there are some fully connected layers:
+# After each conv layer there's a pooling step. Finally, there are some fully connected (Dense) layers:
 
 lenet = Chain(
-	Conv((5, 5), 1 => 6, relu),
+	Conv((5, 5), 1 => 6, relu), #all filter sizes, number of layers are all also Hyperparameters
 	MaxPool((2, 2)),
 	Conv((5, 5), 6 => 16, relu),
 	MaxPool((2, 2)),
 	Flux.flatten,
-	Dense(256 => 120, relu),
+	Dense(256 => 120, relu), #256 here is decided by the original image size, and then the convolutional part, how many layers, what filter sizes, Poolings etc.
 	Dense(120 => 84, relu),
 	Dense(84 => 10),
 )
@@ -58,6 +58,8 @@ lenet = Chain(
 # of 6 different 5x5 filters, placed at every possible position. These filters are here:
 
 Conv((5, 5), 1 => 6).weight # 5×5×1×6 Array{Float32, 4}
+
+# map(w->w[:,:,1]*x1[11:15,11:15,1,1], eachslice(Conv((5, 5), 1 => 6).weight, dims=4)) # Explanation - We multiply a convolutional filters weight matrix with a cross section of an image, and it returns the output for each channel. In this example we have 6 such channels.
 
 # This layer can accept any size of image; let's trace the sizes with the actual input:
 
@@ -97,22 +99,12 @@ function loss_and_accuracy(model, data)
 	(x, y) = only(loader(data; batchsize = size(data, 1)))  # make one big batch
 	ŷ = model(x)
 	loss = Flux.logitcrossentropy(ŷ, y)  # did not include softmax in the model
+	#Flux=>Lux: logitcrossentropy => CrossEnrtropy(logits=true); crossentropy=>CrossEnrtropy(logits=false)
 	acc = round(100 * mean(Flux.onecold(ŷ) .== Flux.onecold(y)); digits = 2)
 	return loss, acc
 end
 
 @show loss_and_accuracy(lenet, test_data)  # accuracy about 10%, before training
-
-#===== LOADING TRAINED MODEL (SKIP THIS IF WANT TO TRAIN ANEW)=====#
-
-# During training, the code above saves the model state to disk. Load the last version:
-
-loaded_state = JLD2.load(filename, "lenet_state")
-
-# Now you would normally re-create the model, and copy all parameters into that.
-# We can use lenet2 from just above:
-
-Flux.loadmodel!(lenet, loaded_state)
 
 #===== TRAINING =====#
 
@@ -120,16 +112,15 @@ Flux.loadmodel!(lenet, loaded_state)
 # Global variables are fine -- we won't access this from inside any fast loops.
 
 settings = (;
-	eta = 3e-4,     # learning rate
-	lambda = 1e-2,  # for weight decay
+	eta = 0.001,     # learning rate
+	lambda = 3e-4,  # for weight decay
 	batchsize = 512,
-	epochs = 10,
+	epochs = 20,
 )
 train_log = []
 
 # Initialise the storage needed for the optimiser:
-
-opt_rule = OptimiserChain(WeightDecay(settings.lambda), AdaBelief())
+opt_rule = AdamW(settings.eta, (0.9, 0.999), settings.lambda)
 opt_state = Flux.setup(opt_rule, lenet)
 for epoch in 1:settings.epochs
 	# @time will show a much longer time for the first epoch, due to compilation
@@ -152,11 +143,24 @@ for epoch in 1:settings.epochs
 	end
 end
 
+#HW TODO - Check why the MLP using Lux.jl was faster than CNN using Flux?
+
 @show train_log
 
 # We can re-run the quick sanity-check of predictions:
 y1hat = softmax(lenet(x1))
 @show hcat(Flux.onecold(y1hat, 0:9), Flux.onecold(y1, 0:9))
+
+#===== LOADING TRAINED MODEL (SKIP THIS IF WANT TO TRAIN ANEW)=====#
+
+# During training, the code above saves the model state to disk. Load the last version:
+
+loaded_state = JLD2.load(filename, "lenet_state")
+
+# Now you would normally re-create the model, and copy all parameters into that.
+# We can use lenet2 from just above:
+
+Flux.loadmodel!(lenet, loaded_state)
 
 #===== THE END =====#
 
