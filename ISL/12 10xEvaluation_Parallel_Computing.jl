@@ -1,10 +1,14 @@
-# They want you to Train on a train set, and they want to benchmark all algorithms on a test set (ideally this is hidden from competitors, or made unavailable by the client because they want to test, or it is still in the future).
-# 1. Cross-validation when Hyperparameter tuning - Requires Train and validation sets, ususally comes from the original train set, which are split for n folds
-# 2. Evaluation 10-fold (evaluate!) when presenting a model to someone - Requires only a train set which is split into 10 folds
-
 # Classification of MNIST dataset using an MLP and Lux.jl
 
-# Hypothesis - IndependentCV is better than StandardCV
+# Research question - Which model architecture is better choice for MNIST data?
+# Hypothesis (Over arching Research question) - IndependentCV is better than StandardCV
+
+### Motivation
+# They want you to Train on a train set, and they want to benchmark all algorithms on a test set (ideally this is hidden from competitors, or made unavailable by the client because they want to test, or it is still in the future).
+# 1. K-fold Cross-validation when Hyperparameter tuning - Requires Train and validation sets, ususally comes from the original train set, which are split for n folds
+# 2. Evaluation 10-fold (evaluate!) when presenting a model to someone - Requires only a train set which is split into 10 folds
+
+# n folds x 4 experiments x n epochs = 2000 trainings steps/ 10 processors => 200 parallel training session
 
 using Distributed
 @everywhere n_splits = 8
@@ -235,12 +239,12 @@ for approach in ["StandardCV", "IndependentCV"] # Under test
 			end
 			ttime = time() - stime
 			timings[split_no] = ttime
-			# @printf "Split %1d took %.2fs to complete %2d epochs \t Best Accuracy: %.2f%% \t Best Balanced Accuracy: %.2f%% on the validation set was seen at epoch %2d\n" split_no ttime nepochs best_acc best_bal_acc last_improvement
+			@printf "Split %1d took %.2fs to complete %2d epochs \t Best Accuracy: %.2f%% \t Best Balanced Accuracy: %.2f%% on the validation set was seen at epoch %2d\n" split_no ttime nepochs best_acc best_bal_acc last_improvement
 		end
 
 		@printf "Completed on %d splits\n" n_splits
-		@printf "Total Time Taken: %.2fs\n" sum(timings)
-		@printf "Time required per split %.2fs ± %.2fs\n" mean(timings) (3 * std(timings))
+		@printf "Total CPU Time Taken: %.2fs\n" sum(timings)
+		@printf "Time required per split %.2fs ± %.2fs, for a total %d epochs\n" mean(timings) (3 * std(timings)) 50
 
 		@printf "Train-Validate Accuracy across folds: %.2f%% ± %.2f%%\n" mean(val_accuracies) (3 * std(val_accuracies))
 		@printf "Train-Validate Balanced Accuracy across folds: %.2f%% ± %.2f%%\n" mean(bal_val_accuracies) (3 * std(bal_val_accuracies))
